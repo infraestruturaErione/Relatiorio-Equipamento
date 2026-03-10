@@ -14,7 +14,15 @@ const AuthContext = createContext<AuthContextShape | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     const stored = localStorage.getItem('user');
-    return stored ? (JSON.parse(stored) as User) : null;
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as Partial<User>;
+    if (!parsed.id || !parsed.name || !parsed.username) return null;
+    return {
+      id: parsed.id,
+      name: parsed.name,
+      username: parsed.username,
+      role: parsed.role === 'ADMIN' ? 'ADMIN' : 'ANALYST',
+    };
   });
   const [loading, setLoading] = useState(false);
 

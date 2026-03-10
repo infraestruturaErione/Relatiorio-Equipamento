@@ -7,7 +7,7 @@ function buildExcel(configs) {
   const sheet = workbook.addWorksheet('Configurations');
   const now = new Date().toLocaleString();
 
-  sheet.mergeCells('A1:P1');
+  sheet.mergeCells('A1:S1');
   sheet.getCell('A1').value = `Relatorio de Configuracoes - ${now}`;
   sheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
   sheet.getCell('A1').fill = {
@@ -20,8 +20,11 @@ function buildExcel(configs) {
 
   sheet.columns = [
     { header: 'ID', key: 'id', width: 8 },
+    { header: 'Cliente', key: 'client_name', width: 20 },
+    { header: 'Projeto', key: 'project_name', width: 20 },
     { header: 'Equipamento', key: 'equipment', width: 20 },
-    { header: 'IP', key: 'ip', width: 16 },
+    { header: 'IP Inicio', key: 'ip_start', width: 16 },
+    { header: 'IP Fim', key: 'ip_end', width: 16 },
     { header: 'Mascara', key: 'mask', width: 16 },
     { header: 'Gateway', key: 'gateway', width: 16 },
     { header: 'VLAN', key: 'vlan', width: 10 },
@@ -87,7 +90,7 @@ async function buildPdf(configs, writableStream) {
   doc.pipe(writableStream);
   const webBaseUrl = process.env.WEB_BASE_URL || 'http://localhost:5173';
 
-  doc.fontSize(16).text('Equipment Configuration Report', { underline: true });
+  doc.fontSize(16).text('Relatorio de Configuracoes de Equipamentos', { underline: true });
   doc.moveDown();
 
   for (const [index, config] of configs.entries()) {
@@ -97,13 +100,16 @@ async function buildPdf(configs, writableStream) {
     doc
       .fontSize(10)
       .text(
-        `${index + 1}. [${config.status}] ${config.equipment} | IP: ${config.ip} | VLAN: ${config.vlan}`
+        `${index + 1}. [${config.status}] ${config.client_name || '-'} / ${
+          config.project_name || '-'
+        } | ${config.equipment}`
       )
-      .text(`Configured by: ${config.configured_by_name} | Validated by: ${config.validated_by_name || '-'}`)
+      .text(`Faixa IP: ${config.ip_start || '-'} - ${config.ip_end || '-'} | VLAN: ${config.vlan}`)
+      .text(`Configurado por: ${config.configured_by_name} | Validado por: ${config.validated_by_name || '-'}`)
       .text(`Service: ${config.service} | MAC: ${config.mac}`)
-      .text(`Notes: ${config.notes || '-'}`)
+      .text(`Observacoes: ${config.notes || '-'}`)
       .text(
-        `Created: ${new Date(config.created_at).toLocaleString()} | Validated: ${
+        `Criado em: ${new Date(config.created_at).toLocaleString()} | Validado em: ${
           config.validated_at ? new Date(config.validated_at).toLocaleString() : '-'
         }`
       )

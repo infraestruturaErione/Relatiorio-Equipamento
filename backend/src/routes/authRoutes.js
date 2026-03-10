@@ -12,7 +12,7 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ message: 'Username and password are required.' });
   }
 
-  const query = 'SELECT id, name, username, password_hash FROM users WHERE username = $1';
+  const query = 'SELECT id, name, username, role, password_hash FROM users WHERE username = $1';
   const result = await pool.query(query, [username]);
 
   if (result.rowCount === 0) {
@@ -27,7 +27,7 @@ router.post('/login', async (req, res) => {
   }
 
   const token = jwt.sign(
-    { id: user.id, name: user.name, username: user.username },
+    { id: user.id, name: user.name, username: user.username, role: user.role },
     process.env.JWT_SECRET,
     { expiresIn: '8h' }
   );
@@ -38,6 +38,7 @@ router.post('/login', async (req, res) => {
       id: user.id,
       name: user.name,
       username: user.username,
+      role: user.role,
     },
   });
 });

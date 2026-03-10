@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireAdmin } = require('../middleware/auth');
 const { buildExcel, buildPdf } = require('../services/reportService');
 
 const router = express.Router();
@@ -13,18 +13,29 @@ const BASE_SELECT = `
   SELECT
     ec.*,
     cu.name AS configured_by_name,
-    vu.name AS validated_by_name
+    vu.name AS validated_by_name,
+    c.name AS client_name,
+    p.name AS project_name
   FROM equipment_configs ec
   INNER JOIN users cu ON cu.id = ec.configured_by
   LEFT JOIN users vu ON vu.id = ec.validated_by
+  LEFT JOIN clients c ON c.id = ec.client_id
+  LEFT JOIN projects p ON p.id = ec.project_id
 `;
+
+function ipToNumber(ip) {
+  return ip
+    .split('.')
+    .map(Number)
+    .reduce((acc, octet) => acc * 256 + octet, 0);
+}
 
 function buildFilters(queryParams) {
   const conditions = [];
   const params = [];
 
   if (queryParams.status) {
-    params.push(queryParams.status);
+    params.push(String(queryParams.status).toUpperCase());
     conditions.push(`ec.status = $${params.length}`);
   }
 
@@ -35,7 +46,27 @@ function buildFilters(queryParams) {
 
   if (queryParams.ip) {
     params.push(`%${queryParams.ip}%`);
-    conditions.push(`ec.ip ILIKE $${params.length}`);
+    conditions.push(
+      `(ec.ip_start ILIKE $${params.length} OR ec.ip_end ILIKE $${params.length})`
+    );
+  }
+
+  if (queryParams.client_id) {
+    const clientId = Number(queryParams.client_id);
+    if (!Number.isInteger(clientId) || clientId <= 0) {
+      return { error: 'Invalid client_id filter.' };
+    }
+    params.push(clientId);
+    conditions.push(`ec.client_id = $${params.length}`);
+  }
+
+  if (queryParams.project_id) {
+    const projectId = Number(queryParams.project_id);
+    if (!Number.isInteger(projectId) || projectId <= 0) {
+      return { error: 'Invalid project_id filter.' };
+    }
+    params.push(projectId);
+    conditions.push(`ec.project_id = $${params.length}`);
   }
 
   const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
@@ -45,9 +76,11 @@ function buildFilters(queryParams) {
 router.use(authMiddleware);
 
 router.get('/', async (req, res) => {
-  const { whereClause, params } = buildFilters(req.query);
+  const { whereClause, params, error } = buildFilters(req.query);
+  if (error) {
+    return res.status(400).json({ message: error });
+  }
   const query = `${BASE_SELECT}${whereClause} ORDER BY ec.created_at DESC`;
-
   const result = await pool.query(query, params);
   return res.json(result.rows);
 });
@@ -66,10 +99,45 @@ router.get('/summary', async (_req, res) => {
   return res.json(result.rows[0]);
 });
 
+router.get('/export/excel', async (req, res) => {
+  const { whereClause, params, error } = buildFilters(req.query);
+  if (error) {
+    return res.status(400).json({ message: error });
+  }
+  const result = await pool.query(`${BASE_SELECT}${whereClause} ORDER BY ec.created_at DESC`, params);
+  const workbook = buildExcel(result.rows);
+
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+  res.setHeader('Content-Disposition', 'attachment; filename="equipment-configs.xlsx"');
+
+  await workbook.xlsx.write(res);
+  return res.end();
+});
+
+router.get('/export/pdf', async (req, res) => {
+  const { whereClause, params, error } = buildFilters(req.query);
+  if (error) {
+    return res.status(400).json({ message: error });
+  }
+  const result = await pool.query(`${BASE_SELECT}${whereClause} ORDER BY ec.created_at DESC`, params);
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'attachment; filename="equipment-report.pdf"');
+
+  await buildPdf(result.rows, res);
+});
+
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    return res.status(400).json({ message: 'Invalid configuration id.' });
+  }
   const query = `${BASE_SELECT} WHERE ec.id = $1`;
-  const result = await pool.query(query, [id]);
+  const result = await pool.query(query, [numericId]);
 
   if (result.rowCount === 0) {
     return res.status(404).json({ message: 'Configuration not found.' });
@@ -80,8 +148,11 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   const {
+    client_id: clientId,
+    project_id: projectId,
     equipment,
-    ip,
+    ip_start: ipStart,
+    ip_end: ipEnd,
     mask,
     gateway,
     vlan,
@@ -91,13 +162,36 @@ router.post('/', async (req, res) => {
     password,
     notes,
   } = req.body;
+  const clientIdNumber = Number(clientId);
+  const projectIdNumber = Number(projectId);
 
-  if (!equipment || !ip || !mask || !gateway || !vlan || !service || !mac || !username || !password) {
+  if (
+    !clientIdNumber ||
+    !projectIdNumber ||
+    !equipment ||
+    !ipStart ||
+    !ipEnd ||
+    !mask ||
+    !gateway ||
+    !vlan ||
+    !service ||
+    !mac ||
+    !username ||
+    !password
+  ) {
     return res.status(400).json({ message: 'Required fields are missing.' });
   }
 
-  if (!ipRegex.test(ip)) {
+  if (!Number.isInteger(clientIdNumber) || !Number.isInteger(projectIdNumber)) {
+    return res.status(400).json({ message: 'Client and project must be valid IDs.' });
+  }
+
+  if (!ipRegex.test(ipStart) || !ipRegex.test(ipEnd)) {
     return res.status(400).json({ message: 'Invalid IP format.' });
+  }
+
+  if (ipToNumber(ipStart) > ipToNumber(ipEnd)) {
+    return res.status(400).json({ message: 'IP Start must be less than or equal to IP End.' });
   }
 
   if (!macRegex.test(mac)) {
@@ -108,17 +202,31 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: 'Invalid VLAN. Use values from 1 to 4094.' });
   }
 
+  const projectValidation = await pool.query(
+    'SELECT id FROM projects WHERE id = $1 AND client_id = $2',
+    [projectIdNumber, clientIdNumber]
+  );
+  if (projectValidation.rowCount === 0) {
+    return res.status(400).json({ message: 'Selected project does not belong to the selected client.' });
+  }
+
   const query = `
     INSERT INTO equipment_configs
-      (equipment, ip, mask, gateway, vlan, service, mac, username, password, configured_by, notes)
+      (
+        client_id, project_id, equipment, ip_start, ip_end, mask, gateway, vlan, service, mac,
+        username, password, configured_by, notes
+      )
     VALUES
-      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING *
   `;
 
   const values = [
+    clientIdNumber,
+    projectIdNumber,
     equipment,
-    ip,
+    ipStart,
+    ipEnd,
     mask,
     gateway,
     vlan,
@@ -136,9 +244,13 @@ router.post('/', async (req, res) => {
 
 router.patch('/:id/validate', async (req, res) => {
   const { id } = req.params;
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    return res.status(400).json({ message: 'Invalid configuration id.' });
+  }
   const { notes } = req.body;
 
-  const currentResult = await pool.query('SELECT * FROM equipment_configs WHERE id = $1', [id]);
+  const currentResult = await pool.query('SELECT * FROM equipment_configs WHERE id = $1', [numericId]);
   if (currentResult.rowCount === 0) {
     return res.status(404).json({ message: 'Configuration not found.' });
   }
@@ -156,15 +268,19 @@ router.patch('/:id/validate', async (req, res) => {
     RETURNING *
   `;
 
-  const result = await pool.query(query, [req.user.id, notes || null, id]);
+  const result = await pool.query(query, [req.user.id, notes || null, numericId]);
   return res.json(result.rows[0]);
 });
 
 router.patch('/:id/reject', async (req, res) => {
   const { id } = req.params;
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    return res.status(400).json({ message: 'Invalid configuration id.' });
+  }
   const { notes } = req.body;
 
-  const currentResult = await pool.query('SELECT * FROM equipment_configs WHERE id = $1', [id]);
+  const currentResult = await pool.query('SELECT * FROM equipment_configs WHERE id = $1', [numericId]);
   if (currentResult.rowCount === 0) {
     return res.status(404).json({ message: 'Configuration not found.' });
   }
@@ -182,33 +298,22 @@ router.patch('/:id/reject', async (req, res) => {
     RETURNING *
   `;
 
-  const result = await pool.query(query, [req.user.id, notes || null, id]);
+  const result = await pool.query(query, [req.user.id, notes || null, numericId]);
   return res.json(result.rows[0]);
 });
 
-router.get('/export/excel', async (req, res) => {
-  const { whereClause, params } = buildFilters(req.query);
-  const result = await pool.query(`${BASE_SELECT}${whereClause} ORDER BY ec.created_at DESC`, params);
-  const workbook = buildExcel(result.rows);
+router.delete('/:id', requireAdmin, async (req, res) => {
+  const numericId = Number(req.params.id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    return res.status(400).json({ message: 'Invalid configuration id.' });
+  }
 
-  res.setHeader(
-    'Content-Type',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  );
-  res.setHeader('Content-Disposition', 'attachment; filename="equipment-configs.xlsx"');
+  const result = await pool.query('DELETE FROM equipment_configs WHERE id = $1 RETURNING id', [numericId]);
+  if (result.rowCount === 0) {
+    return res.status(404).json({ message: 'Configuration not found.' });
+  }
 
-  await workbook.xlsx.write(res);
-  return res.end();
-});
-
-router.get('/export/pdf', async (req, res) => {
-  const { whereClause, params } = buildFilters(req.query);
-  const result = await pool.query(`${BASE_SELECT}${whereClause} ORDER BY ec.created_at DESC`, params);
-
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', 'attachment; filename="equipment-report.pdf"');
-
-  await buildPdf(result.rows, res);
+  return res.status(204).send();
 });
 
 module.exports = router;

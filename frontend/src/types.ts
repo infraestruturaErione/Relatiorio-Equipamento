@@ -1,15 +1,22 @@
 export type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type UserRole = 'ADMIN' | 'ANALYST';
 
 export interface User {
   id: number;
   name: string;
   username: string;
+  role: UserRole;
 }
 
 export interface EquipmentConfig {
   id: number;
+  client_id: number | null;
+  project_id: number | null;
+  client_name?: string | null;
+  project_name?: string | null;
   equipment: string;
-  ip: string;
+  ip_start: string | null;
+  ip_end: string | null;
   mask: string;
   gateway: string;
   vlan: string;
@@ -32,4 +39,24 @@ export interface Summary {
   pending: number;
   approved: number;
   rejected: number;
+}
+
+export interface Client {
+  id: number;
+  name: string;
+  created_at: string;
+  projects_count?: number;
+  configs_count?: number;
+}
+
+export interface Project {
+  id: number;
+  client_id: number;
+  client_name?: string;
+  name: string;
+  created_at: string;
+  total_configs?: number;
+  pending_configs?: number;
+  approved_configs?: number;
+  rejected_configs?: number;
 }

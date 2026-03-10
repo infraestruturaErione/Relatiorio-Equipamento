@@ -4,6 +4,8 @@ const cors = require('cors');
 
 const authRoutes = require('./routes/authRoutes');
 const equipmentRoutes = require('./routes/equipmentRoutes');
+const clientRoutes = require('./routes/clientRoutes');
+const projectRoutes = require('./routes/projectRoutes');
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -16,6 +18,8 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/projects', projectRoutes);
 app.use('/api/configs', equipmentRoutes);
 
 app.use((error, _req, res, _next) => {

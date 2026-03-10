@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('analyst1');
+  const [username, setUsername] = useState('admin1');
   const [password, setPassword] = useState('123456');
   const [error, setError] = useState('');
   const { login, loading } = useAuth();
@@ -21,10 +21,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="login-page">
-      <form className="card login-card" onSubmit={handleSubmit}>
-        <h2>Acesso ao Sistema</h2>
-        <p className="muted">Somente analistas autorizados.</p>
+    <div className="login-page login-page-centered">
+      <form className="card login-card login-card-compact" onSubmit={handleSubmit}>
+        <img src="/logo-erione-cor-768x218.png" alt="Relatorio-Campo" className="login-logo" />
         <input
           placeholder="Usuario"
           value={username}

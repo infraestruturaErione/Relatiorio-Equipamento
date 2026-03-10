@@ -1,26 +1,15 @@
 # Relatorio-Campo
 
-Sistema interno web para cadastro e validacao de configuracoes de equipamentos.
+Sistema web interno para cadastro, validacao e relatorios de configuracoes de equipamentos.
 
-## Tecnologias
+## Stack
 
 - Backend: Node.js + Express
 - Banco: PostgreSQL
 - Frontend: React + Vite + TypeScript
+- Infra local: Docker Compose (Postgres + API + Frontend)
 
-## Docker (100% automatico)
-
-Fluxo profissional com tudo subindo automatico:
-
-- PostgreSQL
-- Execucao automatica de `schema.sql` e `seed.sql` no primeiro start do banco
-- Backend API
-- Frontend servido por Nginx
-
-### Subir tudo
-
-1. Copie `.env.example` para `.env` na raiz (opcional, para customizar portas/senhas).
-2. Rode:
+## Subir com Docker
 
 ```bash
 docker compose up --build
@@ -30,58 +19,111 @@ Acessos:
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:4000/api`
-- Postgres (host): `localhost:5433`
+- Postgres host: `localhost:5433`
 
-### Resetar banco/init scripts
-
-Os scripts de init do Postgres rodam apenas quando o volume e criado.
-Para reset completo e reexecutar `schema.sql` + `seed.sql`:
+### Reset completo do banco
 
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-## Funcionalidades implementadas
+Se o volume ja existir e voce atualizou schema/seed, rode:
 
-- Login com JWT
-- Cadastro de configuracao de equipamento
-- Listagem geral de configuracoes
-- Validacao e reprovacao de configuracoes
-- Regra de negocio: o mesmo analista que configurou **nao pode** validar/reprovar
-- Dashboard com resumo (`PENDING`, `APPROVED`, `REJECTED`)
-- Tela de validacoes pendentes
-- Historico de configuracoes
-- Relatorios com:
-  - tabela em tela
-  - busca por **equipamento** e **IP**
-  - exportacao para Excel (filtrada)
-  - exportacao para PDF (filtrada)
-  - QR Code no PDF apontando para `/configs/{id}`
-- Tela de detalhe por configuracao: `/configs/:id` (aberta via QR)
-- Validacao backend de formato para IP, MAC e VLAN
-- Tema visual com alternancia `Dark/Light`
-- Logout com redirecionamento imediato
+```bash
+cd backend
+npm run db:init
+```
+
+## Funcionalidades
+
+- Login com JWT e roles (`ADMIN`, `ANALYST`)
+- Modulos de Clientes e Projetos
+- Cadastro de configuracoes com:
+  - `ip_start` (IP inicial)
+  - `ip_end` (IP final)
+- Cadastro multiplo na tela Nova Config (`+ Adicionar equipamento`)
+- Validacao/reprovacao com regra:
+  - quem configura nao pode validar/reprovar o mesmo registro
+- Dashboard com cards:
+  - pendentes
+  - aprovadas
+  - reprovadas
+  - total
+- Relatorios com filtros por:
+  - cliente
+  - projeto
+  - equipamento
+  - IP
+  - status
+- Exportacao Excel/PDF com filtros
+- Pagina de detalhes por projeto e por configuracao
+- Paginacao no frontend (Pendentes, Historico, Relatorios)
+
+## Permissoes por role
+
+Somente `ADMIN` pode excluir:
+
+- configuracoes
+- clientes
+- projetos
+
+O backend valida role antes de executar delete.
+
+## Validacoes de seguranca (backend)
+
+- IPv4 valido (`ip_start`, `ip_end`)
+- MAC valido (`AA:BB:CC:DD:EE:FF`)
+- VLAN de `1` a `4094`
+- SQL com query parametrizada (`$1`, `$2`, ...)
+
+No frontend, senha do equipamento fica oculta por padrao com botao mostrar/ocultar.
 
 ## Estrutura de paginas
 
 - Login
-- Painel
-- Nova Configuracao
-- Validacoes Pendentes
+- Dashboard
+- Clientes
+- Projetos
+- Nova Config
+- Pendentes
 - Historico
 - Relatorios
 - Detalhes da Configuracao (`/configs/:id`)
+- Detalhes do Projeto (`/projects/:id`)
 
-## Estrutura do banco
+## Banco (resumo)
 
-Tabela principal: `equipment_configs`
-
-Campos:
+### users
 
 - `id`
+- `name`
+- `username`
+- `password_hash`
+- `role` (`ADMIN` ou `ANALYST`)
+- `created_at`
+
+### clients
+
+- `id`
+- `name`
+- `created_at`
+
+### projects
+
+- `id`
+- `client_id`
+- `name`
+- `created_at`
+
+### equipment_configs
+
+- `id`
+- `client_id`
+- `project_id`
 - `equipment`
-- `ip`
+- `ip_start`
+- `ip_end`
 - `mask`
 - `gateway`
 - `vlan`
@@ -91,85 +133,37 @@ Campos:
 - `password`
 - `configured_by`
 - `validated_by`
-- `status`
+- `status` (`PENDING`, `APPROVED`, `REJECTED`)
 - `notes`
 - `created_at`
 - `validated_at`
-
-Status:
-
-- `PENDING`
-- `APPROVED`
-- `REJECTED`
 
 Scripts SQL:
 
 - `backend/sql/schema.sql`
 - `backend/sql/seed.sql`
 
-## Configuracao do backend
+## Rodar sem Docker
 
-Entre em `backend/` e crie `.env` a partir de `.env.example`.
-
-Voce pode usar **ou** `DATABASE_URL` **ou** configuracao por campos separados.
-
-Exemplo usando `DATABASE_URL`:
-
-```env
-PORT=4000
-DATABASE_URL=postgresql://postgres:SUA_SENHA@localhost:5433/relatorio_campo
-JWT_SECRET=devsecret
-WEB_BASE_URL=http://localhost:5173
-```
-
-Exemplo usando campos separados:
-
-```env
-PORT=4000
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=equipment_db
-DB_USER=postgres
-DB_PASSWORD=postgres
-JWT_SECRET=change_me
-WEB_BASE_URL=http://localhost:5173
-```
-
-### Comandos backend
+### Backend
 
 ```bash
+cd backend
 npm install
 npm run db:init
 npm run dev
 ```
 
-- `npm run db:init`: cria schema e aplica seed no banco configurado no `.env`
-- API base: `http://localhost:4000/api`
-
-## Configuracao do frontend
-
-Entre em `frontend/` e crie `.env` a partir de `.env.example`:
-
-```env
-VITE_API_URL=http://localhost:4000/api
-```
-
-### Comandos frontend
+### Frontend
 
 ```bash
+cd frontend
 npm install
 npm run dev
 ```
 
-- App web: `http://localhost:5173`
+## Usuarios de seed
 
-## Usuarios seed
-
-- `analyst1` / `123456`
-- `analyst2` / `123456`
-
-## Observacoes
-
-- Para melhor desempenho da busca por equipamento, o schema inclui indice:
-  - `idx_equipment_configs_equipment`
-- A exportacao no modulo de relatorios respeita os filtros aplicados por equipamento/IP.
+- `admin1` / `123456` (ADMIN)
+- `analyst1` / `123456` (ANALYST)
+- `analyst2` / `123456` (ANALYST)

@@ -1,6 +1,24 @@
 -- Password for both users: 123456
-INSERT INTO users (name, username, password_hash)
+INSERT INTO users (name, username, password_hash, role)
 VALUES
-  ('Analyst One', 'analyst1', '$2b$10$VwxDNuHUBLNnvbSo5kISJOSWqpYo0fJNZJSYKIGQZNyyQqmbhllHu'),
-  ('Analyst Two', 'analyst2', '$2b$10$VwxDNuHUBLNnvbSo5kISJOSWqpYo0fJNZJSYKIGQZNyyQqmbhllHu')
-ON CONFLICT (username) DO NOTHING;
+  ('Admin One', 'admin1', '$2b$10$VwxDNuHUBLNnvbSo5kISJOSWqpYo0fJNZJSYKIGQZNyyQqmbhllHu', 'ADMIN'),
+  ('Analyst One', 'analyst1', '$2b$10$VwxDNuHUBLNnvbSo5kISJOSWqpYo0fJNZJSYKIGQZNyyQqmbhllHu', 'ANALYST'),
+  ('Analyst Two', 'analyst2', '$2b$10$VwxDNuHUBLNnvbSo5kISJOSWqpYo0fJNZJSYKIGQZNyyQqmbhllHu', 'ANALYST')
+ON CONFLICT (username) DO UPDATE SET role = EXCLUDED.role;
+
+INSERT INTO clients (name)
+VALUES
+  ('Client Alpha'),
+  ('Client Beta')
+ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO projects (client_id, name)
+SELECT c.id, p.project_name
+FROM clients c
+JOIN (
+  VALUES
+    ('Client Alpha', 'Core Expansion'),
+    ('Client Alpha', 'Branch Retrofit'),
+    ('Client Beta', 'Datacenter Migration')
+) AS p(client_name, project_name) ON p.client_name = c.name
+ON CONFLICT (client_id, name) DO NOTHING;
