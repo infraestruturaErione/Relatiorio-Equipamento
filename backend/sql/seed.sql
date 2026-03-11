@@ -16,13 +16,17 @@ SET
   mask = EXCLUDED.mask,
   gateway = EXCLUDED.gateway;
 
-INSERT INTO projects (client_id, name)
-SELECT c.id, p.project_name
+INSERT INTO projects (client_id, name, network_range, mask, gateway)
+SELECT c.id, p.project_name, p.network_range, p.mask, p.gateway
 FROM clients c
 JOIN (
   VALUES
-    ('Client Alpha', 'Core Expansion'),
-    ('Client Alpha', 'Branch Retrofit'),
-    ('Client Beta', 'Datacenter Migration')
-) AS p(client_name, project_name) ON p.client_name = c.name
-ON CONFLICT (client_id, name) DO NOTHING;
+    ('Client Alpha', 'Core Expansion', '192.168.10.0/24', '255.255.255.0', '192.168.10.1'),
+    ('Client Alpha', 'Branch Retrofit', '192.168.20.0/24', '255.255.255.0', '192.168.20.1'),
+    ('Client Beta', 'Datacenter Migration', '10.10.0.0/24', '255.255.255.0', '10.10.0.1')
+) AS p(client_name, project_name, network_range, mask, gateway) ON p.client_name = c.name
+ON CONFLICT (client_id, name) DO UPDATE
+SET
+  network_range = EXCLUDED.network_range,
+  mask = EXCLUDED.mask,
+  gateway = EXCLUDED.gateway;

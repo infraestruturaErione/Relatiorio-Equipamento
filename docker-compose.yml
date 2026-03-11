@@ -25,6 +25,7 @@ services:
       dockerfile: Dockerfile
     container_name: relatorio-backend
     restart: unless-stopped
+    command: sh -c "npm run db:migrate && npm start"
     environment:
       PORT: 4000
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-relatorio_campo}

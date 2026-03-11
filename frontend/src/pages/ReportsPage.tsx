@@ -6,15 +6,15 @@ import MaskedText from '../components/MaskedText';
 import Pagination from '../components/Pagination';
 import type { Client, EquipmentConfig, Project } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-
 function downloadBlob(blob: Blob, fileName: string) {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = fileName;
+  document.body.appendChild(link);
   link.click();
-  window.URL.revokeObjectURL(url);
+  link.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 }
 
 export default function ReportsPage() {
@@ -26,6 +26,7 @@ export default function ReportsPage() {
   const [selected, setSelected] = useState<EquipmentConfig | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [error, setError] = useState('');
 
   const filteredProjects = useMemo(
     () =>
@@ -65,19 +66,29 @@ export default function ReportsPage() {
   }, []);
 
   const exportExcel = async () => {
-    const response = await api.get(`${API_URL}/configs/export/excel`, {
-      params: buildParams(),
-      responseType: 'blob',
-    });
-    downloadBlob(response.data as Blob, 'configs-filtradas.xlsx');
+    setError('');
+    try {
+      const response = await api.get('/configs/export/excel', {
+        params: buildParams(),
+        responseType: 'blob',
+      });
+      downloadBlob(response.data as Blob, 'configs-filtradas.xlsx');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Falha ao exportar Excel.');
+    }
   };
 
   const exportPdf = async () => {
-    const response = await api.get(`${API_URL}/configs/export/pdf`, {
-      params: buildParams(),
-      responseType: 'blob',
-    });
-    downloadBlob(response.data as Blob, 'relatorio-filtrado.pdf');
+    setError('');
+    try {
+      const response = await api.get('/configs/export/pdf', {
+        params: buildParams(),
+        responseType: 'blob',
+      });
+      downloadBlob(response.data as Blob, 'relatorio-filtrado.pdf');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Falha ao exportar PDF.');
+    }
   };
 
   return (
@@ -85,6 +96,8 @@ export default function ReportsPage() {
       <div className="page-header">
         <h2>Relatorios</h2>
       </div>
+
+      {error && <p className="error">{error}</p>}
 
       <div className="card filters filters-report">
         <div className="form-field">

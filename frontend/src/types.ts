@@ -55,10 +55,10 @@ export interface Project {
   id: number;
   client_id: number;
   client_name?: string;
-  client_ip?: string;
-  client_mask?: string;
-  client_gateway?: string;
   name: string;
+  network_range: string;
+  mask: string;
+  gateway: string;
   created_at: string;
   projects_count?: number;
   configs_count?: number;

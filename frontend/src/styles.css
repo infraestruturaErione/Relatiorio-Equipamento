@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --bg: #060d18;
   --bg-soft: #101d30;
   --sidebar: rgba(11, 20, 33, 0.92);
@@ -17,9 +18,12 @@
   --ok: #66d8a5;
   --error: #ff8399;
   --shadow: 0 18px 38px rgba(1, 8, 18, 0.45);
+  --field-bg: rgba(15, 26, 40, 0.96);
+  --field-text: #e9f2ff;
 }
 
 :root[data-theme='light'] {
+  color-scheme: light;
   --bg: #eef2f8;
   --bg-soft: #f8fbff;
   --sidebar: linear-gradient(180deg, #f5f8fc 0%, #e9eff8 100%);
@@ -38,6 +42,8 @@
   --ok: #1e8655;
   --error: #b8314f;
   --shadow: 0 14px 24px rgba(48, 78, 112, 0.12);
+  --field-bg: #ffffff;
+  --field-text: #1a2940;
 }
 
 * {
@@ -65,10 +71,22 @@ p {
   margin: 0;
 }
 
-button,
 input,
 select,
 textarea {
+  border-radius: 10px;
+  border: 1px solid var(--btn-border);
+  background: var(--field-bg);
+  color: var(--field-text);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+button {
   border-radius: 10px;
   border: 1px solid var(--btn-border);
   background: var(--btn-bg);
@@ -77,8 +95,10 @@ textarea {
   font: inherit;
 }
 
-textarea {
-  resize: vertical;
+select,
+select option {
+  background: var(--field-bg);
+  color: var(--field-text);
 }
 
 button {
@@ -595,7 +615,13 @@ tbody tr:hover {
 }
 
 .inline-form-project {
-  grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr) auto;
+  grid-template-columns:
+    minmax(180px, 1fr)
+    minmax(220px, 1.2fr)
+    minmax(220px, 1.2fr)
+    minmax(180px, 1fr)
+    minmax(180px, 1fr)
+    auto;
 }
 
 .project-grid {

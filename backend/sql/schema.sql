@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS projects (
   id SERIAL PRIMARY KEY,
   client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
   name VARCHAR(160) NOT NULL,
+  network_range VARCHAR(120) NOT NULL,
+  mask VARCHAR(45) NOT NULL,
+  gateway VARCHAR(45) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   UNIQUE (client_id, name)
 );
@@ -72,6 +75,30 @@ ALTER TABLE clients
 ALTER TABLE clients
   ALTER COLUMN mask SET NOT NULL;
 ALTER TABLE clients
+  ALTER COLUMN gateway SET NOT NULL;
+ALTER TABLE projects
+  ADD COLUMN IF NOT EXISTS network_range VARCHAR(120);
+ALTER TABLE projects
+  ADD COLUMN IF NOT EXISTS mask VARCHAR(45);
+ALTER TABLE projects
+  ADD COLUMN IF NOT EXISTS gateway VARCHAR(45);
+UPDATE projects p
+SET network_range = COALESCE(p.network_range, CONCAT(c.ip, ' / ', c.mask))
+FROM clients c
+WHERE p.client_id = c.id
+  AND p.network_range IS NULL;
+UPDATE projects p
+SET
+  mask = COALESCE(p.mask, c.mask),
+  gateway = COALESCE(p.gateway, c.gateway)
+FROM clients c
+WHERE p.client_id = c.id
+  AND (p.mask IS NULL OR p.gateway IS NULL);
+ALTER TABLE projects
+  ALTER COLUMN network_range SET NOT NULL;
+ALTER TABLE projects
+  ALTER COLUMN mask SET NOT NULL;
+ALTER TABLE projects
   ALTER COLUMN gateway SET NOT NULL;
 UPDATE equipment_configs
 SET ip = COALESCE(ip, ip_start, ip_end)

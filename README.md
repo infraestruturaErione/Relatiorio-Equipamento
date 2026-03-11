@@ -15,6 +15,8 @@ Sistema web interno para cadastro, validacao e relatorios de configuracoes de eq
 docker compose up --build
 ```
 
+O servico `backend` aplica as migracoes automaticamente antes de iniciar a API.
+
 Acessos:
 
 - Frontend: `http://localhost:5173`
@@ -117,6 +119,9 @@ No frontend, senha do equipamento fica oculta por padrao com botao mostrar/ocult
 - `id`
 - `client_id`
 - `name`
+- `network_range`
+- `mask`
+- `gateway`
 - `created_at`
 
 ### equipment_configs

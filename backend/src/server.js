@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const pool = require('./db');
+const { runMigrations } = require('./dbMigrate');
 
 const authRoutes = require('./routes/authRoutes');
 const equipmentRoutes = require('./routes/equipmentRoutes');
@@ -28,7 +30,18 @@ app.use((error, _req, res, _next) => {
   res.status(500).json({ message: 'Internal server error.' });
 });
 
-app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Server running on port ${PORT}`);
-});
+async function start() {
+  try {
+    await runMigrations(pool);
+    app.listen(PORT, () => {
+      // eslint-disable-next-line no-console
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to apply database migrations:', error);
+    process.exit(1);
+  }
+}
+
+start();
