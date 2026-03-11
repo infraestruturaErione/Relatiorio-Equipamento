@@ -10,9 +10,20 @@ async function run() {
   const schemaSql = fs.readFileSync(schemaPath, 'utf8');
   const seedSql = fs.readFileSync(seedPath, 'utf8');
 
+  const toStatements = (sql) =>
+    sql
+      .split(/;\s*(?:\r?\n|$)/)
+      .map((statement) => statement.trim())
+      .filter(Boolean);
+
   try {
-    await pool.query(schemaSql);
-    await pool.query(seedSql);
+    for (const statement of toStatements(schemaSql)) {
+      await pool.query(statement);
+    }
+
+    for (const statement of toStatements(seedSql)) {
+      await pool.query(statement);
+    }
     // eslint-disable-next-line no-console
     console.log('Database initialized successfully.');
   } catch (error) {

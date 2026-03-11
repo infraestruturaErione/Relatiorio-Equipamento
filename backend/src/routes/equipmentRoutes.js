@@ -23,13 +23,6 @@ const BASE_SELECT = `
   LEFT JOIN projects p ON p.id = ec.project_id
 `;
 
-function ipToNumber(ip) {
-  return ip
-    .split('.')
-    .map(Number)
-    .reduce((acc, octet) => acc * 256 + octet, 0);
-}
-
 function buildFilters(queryParams) {
   const conditions = [];
   const params = [];
@@ -46,9 +39,7 @@ function buildFilters(queryParams) {
 
   if (queryParams.ip) {
     params.push(`%${queryParams.ip}%`);
-    conditions.push(
-      `(ec.ip_start ILIKE $${params.length} OR ec.ip_end ILIKE $${params.length})`
-    );
+    conditions.push(`ec.ip ILIKE $${params.length}`);
   }
 
   if (queryParams.client_id) {
@@ -151,8 +142,7 @@ router.post('/', async (req, res) => {
     client_id: clientId,
     project_id: projectId,
     equipment,
-    ip_start: ipStart,
-    ip_end: ipEnd,
+    ip,
     mask,
     gateway,
     vlan,
@@ -169,8 +159,7 @@ router.post('/', async (req, res) => {
     !clientIdNumber ||
     !projectIdNumber ||
     !equipment ||
-    !ipStart ||
-    !ipEnd ||
+    !ip ||
     !mask ||
     !gateway ||
     !vlan ||
@@ -186,12 +175,8 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: 'Client and project must be valid IDs.' });
   }
 
-  if (!ipRegex.test(ipStart) || !ipRegex.test(ipEnd)) {
+  if (!ipRegex.test(ip) || !ipRegex.test(mask) || !ipRegex.test(gateway)) {
     return res.status(400).json({ message: 'Invalid IP format.' });
-  }
-
-  if (ipToNumber(ipStart) > ipToNumber(ipEnd)) {
-    return res.status(400).json({ message: 'IP Start must be less than or equal to IP End.' });
   }
 
   if (!macRegex.test(mac)) {
@@ -213,11 +198,11 @@ router.post('/', async (req, res) => {
   const query = `
     INSERT INTO equipment_configs
       (
-        client_id, project_id, equipment, ip_start, ip_end, mask, gateway, vlan, service, mac,
+        client_id, project_id, equipment, ip, mask, gateway, vlan, service, mac,
         username, password, configured_by, notes
       )
     VALUES
-      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *
   `;
 
@@ -225,8 +210,7 @@ router.post('/', async (req, res) => {
     clientIdNumber,
     projectIdNumber,
     equipment,
-    ipStart,
-    ipEnd,
+    ip,
     mask,
     gateway,
     vlan,
@@ -261,6 +245,10 @@ router.patch('/:id/validate', async (req, res) => {
     return res.status(400).json({ message: 'Creator cannot validate the same configuration.' });
   }
 
+  if (config.status !== 'PENDING') {
+    return res.status(400).json({ message: 'Only pending configurations can be validated.' });
+  }
+
   const query = `
     UPDATE equipment_configs
     SET status = 'APPROVED', validated_by = $1, validated_at = NOW(), notes = COALESCE($2, notes)
@@ -289,6 +277,10 @@ router.patch('/:id/reject', async (req, res) => {
 
   if (config.configured_by === req.user.id) {
     return res.status(400).json({ message: 'Creator cannot reject the same configuration.' });
+  }
+
+  if (config.status !== 'PENDING') {
+    return res.status(400).json({ message: 'Only pending configurations can be rejected.' });
   }
 
   const query = `

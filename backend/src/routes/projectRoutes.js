@@ -58,15 +58,30 @@ router.get('/:id', async (req, res) => {
         p.name,
         p.created_at,
         c.name AS client_name,
+        c.ip AS client_ip,
+        c.mask AS client_mask,
+        c.gateway AS client_gateway,
+        client_stats.projects_count,
+        client_stats.configs_count,
         COUNT(ec.id)::int AS total_configs,
         COUNT(*) FILTER (WHERE ec.status = 'PENDING')::int AS pending_configs,
         COUNT(*) FILTER (WHERE ec.status = 'APPROVED')::int AS approved_configs,
         COUNT(*) FILTER (WHERE ec.status = 'REJECTED')::int AS rejected_configs
       FROM projects p
       INNER JOIN clients c ON c.id = p.client_id
+      INNER JOIN (
+        SELECT
+          c_inner.id AS client_id,
+          COUNT(DISTINCT p_inner.id)::int AS projects_count,
+          COUNT(ec_inner.id)::int AS configs_count
+        FROM clients c_inner
+        LEFT JOIN projects p_inner ON p_inner.client_id = c_inner.id
+        LEFT JOIN equipment_configs ec_inner ON ec_inner.project_id = p_inner.id
+        GROUP BY c_inner.id
+      ) AS client_stats ON client_stats.client_id = c.id
       LEFT JOIN equipment_configs ec ON ec.project_id = p.id
       WHERE p.id = $1
-      GROUP BY p.id, c.name
+      GROUP BY p.id, c.name, c.ip, c.mask, c.gateway, client_stats.projects_count, client_stats.configs_count
     `,
     [projectId]
   );

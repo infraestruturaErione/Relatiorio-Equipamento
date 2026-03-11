@@ -3,6 +3,8 @@ const pool = require('../db');
 const { authMiddleware, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
+const ipRegex =
+  /^(25[0-5]|2[0-4]\d|1\d\d|\d\d|\d)\.(25[0-5]|2[0-4]\d|1\d\d|\d\d|\d)\.(25[0-5]|2[0-4]\d|1\d\d|\d\d|\d)\.(25[0-5]|2[0-4]\d|1\d\d|\d\d|\d)$/;
 
 router.use(authMiddleware);
 
@@ -12,6 +14,9 @@ router.get('/', async (_req, res) => {
       SELECT
         c.id,
         c.name,
+        c.ip,
+        c.mask,
+        c.gateway,
         c.created_at,
         COUNT(DISTINCT p.id)::int AS projects_count,
         COUNT(ec.id)::int AS configs_count
@@ -26,10 +31,24 @@ router.get('/', async (_req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, project_name: projectName } = req.body;
+  const {
+    name,
+    project_name: projectName,
+    ip,
+    mask,
+    gateway,
+  } = req.body;
 
   if (!name || !String(name).trim()) {
     return res.status(400).json({ message: 'Client name is required.' });
+  }
+
+  if (!ip || !mask || !gateway) {
+    return res.status(400).json({ message: 'IP, mask and gateway are required.' });
+  }
+
+  if (!ipRegex.test(String(ip)) || !ipRegex.test(String(mask)) || !ipRegex.test(String(gateway))) {
+    return res.status(400).json({ message: 'IP, mask and gateway must be valid IPv4 values.' });
   }
 
   const client = await pool.connect();
@@ -38,12 +57,12 @@ router.post('/', async (req, res) => {
 
     const result = await client.query(
       `
-        INSERT INTO clients (name)
-        VALUES ($1)
+        INSERT INTO clients (name, ip, mask, gateway)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (name) DO NOTHING
         RETURNING *
       `,
-      [String(name).trim()]
+      [String(name).trim(), String(ip).trim(), String(mask).trim(), String(gateway).trim()]
     );
 
     if (result.rowCount === 0) {

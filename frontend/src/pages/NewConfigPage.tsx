@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import api from '../api';
 import Layout from '../components/Layout';
 import type { Client, Project } from '../types';
+import { isValidIpv4 } from '../utils/network';
 
 type ContextState = {
   client_id: string;
@@ -10,8 +11,7 @@ type ContextState = {
 
 type DeviceState = {
   equipment: string;
-  ip_start: string;
-  ip_end: string;
+  ip: string;
   mask: string;
   gateway: string;
   vlan: string;
@@ -29,8 +29,7 @@ const initialContext: ContextState = {
 
 const createEmptyDevice = (): DeviceState => ({
   equipment: '',
-  ip_start: '',
-  ip_end: '',
+  ip: '',
   mask: '',
   gateway: '',
   vlan: '',
@@ -123,6 +122,12 @@ export default function NewConfigPage() {
 
     try {
       for (const device of devices) {
+        if (!isValidIpv4(device.ip) || !isValidIpv4(device.mask) || !isValidIpv4(device.gateway)) {
+          throw new Error('IP, mascara e gateway devem ser IPv4 validos.');
+        }
+      }
+
+      for (const device of devices) {
         await api.post('/configs', {
           ...device,
           client_id: Number(context.client_id),
@@ -133,7 +138,7 @@ export default function NewConfigPage() {
       setContext(initialContext);
       setDevices([createEmptyDevice()]);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Falha ao salvar configuracoes.');
+      setError(err?.response?.data?.message || err?.message || 'Falha ao salvar configuracoes.');
     } finally {
       setSaving(false);
     }
@@ -219,23 +224,12 @@ export default function NewConfigPage() {
                     />
                   </Field>
 
-                  <Field id={`ip-start-${index}`} label="IP inicial" required>
+                  <Field id={`ip-${index}`} label="IP" required>
                     <input
-                      id={`ip-start-${index}-input`}
+                      id={`ip-${index}-input`}
                       placeholder="Ex: 192.168.0.10"
-                      value={device.ip_start}
-                      onChange={(e) => onDeviceChange(index, 'ip_start', e.target.value)}
-                      required
-                      pattern="^\d{1,3}(\.\d{1,3}){3}$"
-                    />
-                  </Field>
-
-                  <Field id={`ip-end-${index}`} label="IP final" required>
-                    <input
-                      id={`ip-end-${index}-input`}
-                      placeholder="Ex: 192.168.0.120"
-                      value={device.ip_end}
-                      onChange={(e) => onDeviceChange(index, 'ip_end', e.target.value)}
+                      value={device.ip}
+                      onChange={(e) => onDeviceChange(index, 'ip', e.target.value)}
                       required
                       pattern="^\d{1,3}(\.\d{1,3}){3}$"
                     />
@@ -330,7 +324,7 @@ export default function NewConfigPage() {
         <div className="form-footer">
           <span className="muted">Campos com * sao obrigatorios.</span>
           <button type="submit" disabled={saving}>
-            {saving ? 'Salvando...' : `Salvar ${devices.length} configuracao(oes)`}
+            {saving ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
 

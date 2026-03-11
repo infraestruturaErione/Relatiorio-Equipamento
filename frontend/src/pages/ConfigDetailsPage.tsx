@@ -41,8 +41,7 @@ export default function ConfigDetailsPage() {
           <div><strong>Client:</strong> {config.client_name || '-'}</div>
           <div><strong>Project:</strong> {config.project_name || '-'}</div>
           <div><strong>Equipamento:</strong> {config.equipment}</div>
-          <div><strong>IP inicial:</strong> <span className="ip-cell">{config.ip_start || '-'}</span></div>
-          <div><strong>IP final:</strong> <span className="ip-cell">{config.ip_end || '-'}</span></div>
+          <div><strong>IP:</strong> <span className="ip-cell">{config.ip || '-'}</span></div>
           <div><strong>Mask:</strong> {config.mask}</div>
           <div><strong>Gateway:</strong> {config.gateway}</div>
           <div><strong>VLAN:</strong> {config.vlan}</div>

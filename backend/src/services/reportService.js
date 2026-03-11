@@ -7,7 +7,7 @@ function buildExcel(configs) {
   const sheet = workbook.addWorksheet('Configurations');
   const now = new Date().toLocaleString();
 
-  sheet.mergeCells('A1:S1');
+  sheet.mergeCells('A1:O1');
   sheet.getCell('A1').value = `Relatorio de Configuracoes - ${now}`;
   sheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
   sheet.getCell('A1').fill = {
@@ -22,9 +22,6 @@ function buildExcel(configs) {
     { header: 'ID', key: 'id', width: 8 },
     { header: 'Cliente', key: 'client_name', width: 20 },
     { header: 'Projeto', key: 'project_name', width: 20 },
-    { header: 'Equipamento', key: 'equipment', width: 20 },
-    { header: 'IP Inicio', key: 'ip_start', width: 16 },
-    { header: 'IP Fim', key: 'ip_end', width: 16 },
     { header: 'Mascara', key: 'mask', width: 16 },
     { header: 'Gateway', key: 'gateway', width: 16 },
     { header: 'VLAN', key: 'vlan', width: 10 },
@@ -34,7 +31,6 @@ function buildExcel(configs) {
     { header: 'Senha Eq.', key: 'password', width: 16 },
     { header: 'Configurado por', key: 'configured_by_name', width: 18 },
     { header: 'Validado por', key: 'validated_by_name', width: 18 },
-    { header: 'Status', key: 'status', width: 14 },
     { header: 'Observacoes', key: 'notes', width: 30 },
     { header: 'Criado em', key: 'created_at', width: 20 },
     { header: 'Validado em', key: 'validated_at', width: 20 },
@@ -52,16 +48,7 @@ function buildExcel(configs) {
   headerRow.height = 22;
 
   configs.forEach((config) => {
-    const row = sheet.addRow(config);
-    const statusCell = row.getCell('status');
-    const normalized = String(statusCell.value || '').toUpperCase();
-    if (normalized === 'APPROVED') {
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD7F5E7' } };
-    } else if (normalized === 'REJECTED') {
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE1E7' } };
-    } else {
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF4D8' } };
-    }
+    sheet.addRow(config);
   });
 
   sheet.eachRow((row, rowNumber) => {
@@ -100,11 +87,9 @@ async function buildPdf(configs, writableStream) {
     doc
       .fontSize(10)
       .text(
-        `${index + 1}. [${config.status}] ${config.client_name || '-'} / ${
-          config.project_name || '-'
-        } | ${config.equipment}`
+        `${index + 1}. ${config.client_name || '-'} / ${config.project_name || '-'}`
       )
-      .text(`Faixa IP: ${config.ip_start || '-'} - ${config.ip_end || '-'} | VLAN: ${config.vlan}`)
+      .text(`Mascara: ${config.mask || '-'} | Gateway: ${config.gateway || '-'} | VLAN: ${config.vlan}`)
       .text(`Configurado por: ${config.configured_by_name} | Validado por: ${config.validated_by_name || '-'}`)
       .text(`Service: ${config.service} | MAC: ${config.mac}`)
       .text(`Observacoes: ${config.notes || '-'}`)

@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS clients (
   id SERIAL PRIMARY KEY,
   name VARCHAR(160) UNIQUE NOT NULL,
+  ip VARCHAR(45) NOT NULL,
+  mask VARCHAR(45) NOT NULL,
+  gateway VARCHAR(45) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
@@ -26,8 +29,7 @@ CREATE TABLE IF NOT EXISTS equipment_configs (
   client_id INTEGER REFERENCES clients(id),
   project_id INTEGER REFERENCES projects(id),
   equipment VARCHAR(120) NOT NULL,
-  ip_start VARCHAR(45) NOT NULL,
-  ip_end VARCHAR(45) NOT NULL,
+  ip VARCHAR(45) NOT NULL,
   mask VARCHAR(45) NOT NULL,
   gateway VARCHAR(45) NOT NULL,
   vlan VARCHAR(50) NOT NULL,
@@ -48,9 +50,32 @@ ALTER TABLE equipment_configs
 ALTER TABLE equipment_configs
   ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id);
 ALTER TABLE equipment_configs
+  ADD COLUMN IF NOT EXISTS ip VARCHAR(45);
+ALTER TABLE equipment_configs
   ADD COLUMN IF NOT EXISTS ip_start VARCHAR(45);
 ALTER TABLE equipment_configs
   ADD COLUMN IF NOT EXISTS ip_end VARCHAR(45);
+ALTER TABLE clients
+  ADD COLUMN IF NOT EXISTS ip VARCHAR(45);
+ALTER TABLE clients
+  ADD COLUMN IF NOT EXISTS mask VARCHAR(45);
+ALTER TABLE clients
+  ADD COLUMN IF NOT EXISTS gateway VARCHAR(45);
+UPDATE clients
+SET
+  ip = COALESCE(ip, '0.0.0.0'),
+  mask = COALESCE(mask, '255.255.255.0'),
+  gateway = COALESCE(gateway, '0.0.0.1')
+WHERE ip IS NULL OR mask IS NULL OR gateway IS NULL;
+ALTER TABLE clients
+  ALTER COLUMN ip SET NOT NULL;
+ALTER TABLE clients
+  ALTER COLUMN mask SET NOT NULL;
+ALTER TABLE clients
+  ALTER COLUMN gateway SET NOT NULL;
+UPDATE equipment_configs
+SET ip = COALESCE(ip, ip_start, ip_end)
+WHERE ip IS NULL;
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'ANALYST';
 ALTER TABLE users
@@ -58,16 +83,15 @@ ALTER TABLE users
 ALTER TABLE users
   ADD CONSTRAINT users_role_check CHECK (role IN ('ADMIN', 'ANALYST'));
 UPDATE users SET role = 'ANALYST' WHERE role IS NULL;
-ALTER TABLE equipment_configs
-  DROP COLUMN IF EXISTS ip;
 
 CREATE INDEX IF NOT EXISTS idx_equipment_configs_status ON equipment_configs(status);
 CREATE INDEX IF NOT EXISTS idx_equipment_configs_created_at ON equipment_configs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_equipment_configs_service ON equipment_configs(service);
 CREATE INDEX IF NOT EXISTS idx_equipment_configs_equipment ON equipment_configs(equipment);
 DROP INDEX IF EXISTS idx_equipment_configs_ip;
-CREATE INDEX IF NOT EXISTS idx_equipment_configs_ip_start ON equipment_configs(ip_start);
-CREATE INDEX IF NOT EXISTS idx_equipment_configs_ip_end ON equipment_configs(ip_end);
+DROP INDEX IF EXISTS idx_equipment_configs_ip_start;
+DROP INDEX IF EXISTS idx_equipment_configs_ip_end;
+CREATE INDEX IF NOT EXISTS idx_equipment_configs_ip ON equipment_configs(ip);
 CREATE INDEX IF NOT EXISTS idx_equipment_configs_client_id ON equipment_configs(client_id);
 CREATE INDEX IF NOT EXISTS idx_equipment_configs_project_id ON equipment_configs(project_id);
 CREATE INDEX IF NOT EXISTS idx_projects_client_id ON projects(client_id);

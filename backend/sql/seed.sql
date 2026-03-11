@@ -6,11 +6,15 @@ VALUES
   ('Analyst Two', 'analyst2', '$2b$10$VwxDNuHUBLNnvbSo5kISJOSWqpYo0fJNZJSYKIGQZNyyQqmbhllHu', 'ANALYST')
 ON CONFLICT (username) DO UPDATE SET role = EXCLUDED.role;
 
-INSERT INTO clients (name)
+INSERT INTO clients (name, ip, mask, gateway)
 VALUES
-  ('Client Alpha'),
-  ('Client Beta')
-ON CONFLICT (name) DO NOTHING;
+  ('Client Alpha', '192.168.10.10', '255.255.255.0', '192.168.10.1'),
+  ('Client Beta', '10.10.0.10', '255.255.255.0', '10.10.0.1')
+ON CONFLICT (name) DO UPDATE
+SET
+  ip = EXCLUDED.ip,
+  mask = EXCLUDED.mask,
+  gateway = EXCLUDED.gateway;
 
 INSERT INTO projects (client_id, name)
 SELECT c.id, p.project_name

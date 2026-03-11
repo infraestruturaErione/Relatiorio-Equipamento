@@ -58,8 +58,7 @@ export default function PendingPage() {
               <th>Client</th>
               <th>Project</th>
               <th>Equipamento</th>
-              <th>IP inicial</th>
-              <th>IP final</th>
+              <th>IP</th>
               <th>Configurado por</th>
               <th>Acoes</th>
             </tr>
@@ -71,8 +70,7 @@ export default function PendingPage() {
                 <td>{item.client_name || '-'}</td>
                 <td>{item.project_name || '-'}</td>
                 <td>{item.equipment}</td>
-                <td className="ip-cell">{item.ip_start || '-'}</td>
-                <td className="ip-cell">{item.ip_end || '-'}</td>
+                <td className="ip-cell">{item.ip || '-'}</td>
                 <td>{item.configured_by_name}</td>
                 <td className="actions-cell">
                   <button onClick={() => validate(item.id)} type="button">Aprovar</button>
@@ -82,7 +80,7 @@ export default function PendingPage() {
             ))}
             {pagedRows.length === 0 && (
               <tr>
-                <td colSpan={8} className="empty-row">
+                <td colSpan={7} className="empty-row">
                   Nenhuma validacao pendente.
                 </td>
               </tr>

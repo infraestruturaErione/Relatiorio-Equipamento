@@ -15,8 +15,7 @@ export interface EquipmentConfig {
   client_name?: string | null;
   project_name?: string | null;
   equipment: string;
-  ip_start: string | null;
-  ip_end: string | null;
+  ip: string | null;
   mask: string;
   gateway: string;
   vlan: string;
@@ -44,6 +43,9 @@ export interface Summary {
 export interface Client {
   id: number;
   name: string;
+  ip: string;
+  mask: string;
+  gateway: string;
   created_at: string;
   projects_count?: number;
   configs_count?: number;
@@ -53,8 +55,13 @@ export interface Project {
   id: number;
   client_id: number;
   client_name?: string;
+  client_ip?: string;
+  client_mask?: string;
+  client_gateway?: string;
   name: string;
   created_at: string;
+  projects_count?: number;
+  configs_count?: number;
   total_configs?: number;
   pending_configs?: number;
   approved_configs?: number;

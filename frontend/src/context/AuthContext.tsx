@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import api from '../api';
 import type { User } from '../types';
 
@@ -15,14 +15,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     const stored = localStorage.getItem('user');
     if (!stored) return null;
-    const parsed = JSON.parse(stored) as Partial<User>;
-    if (!parsed.id || !parsed.name || !parsed.username) return null;
-    return {
-      id: parsed.id,
-      name: parsed.name,
-      username: parsed.username,
-      role: parsed.role === 'ADMIN' ? 'ADMIN' : 'ANALYST',
-    };
+    try {
+      const parsed = JSON.parse(stored) as Partial<User>;
+      if (!parsed.id || !parsed.name || !parsed.username) return null;
+      return {
+        id: parsed.id,
+        name: parsed.name,
+        username: parsed.username,
+        role: parsed.role === 'ADMIN' ? 'ADMIN' : 'ANALYST',
+      };
+    } catch (_error) {
+      localStorage.removeItem('user');
+      return null;
+    }
   });
   const [loading, setLoading] = useState(false);
 
@@ -44,6 +49,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('user');
     setUser(null);
   };
+
+  useEffect(() => {
+    const interceptorId = api.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        const status = error?.response?.status;
+        const message = String(error?.response?.data?.message || '').toLowerCase();
+
+        if (status === 401 && (message.includes('invalid token') || message.includes('unauthorized'))) {
+          logout();
+        }
+
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      api.interceptors.response.eject(interceptorId);
+    };
+  }, []);
 
   const value = useMemo(
     () => ({

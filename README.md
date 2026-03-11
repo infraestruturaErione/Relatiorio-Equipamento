@@ -40,9 +40,12 @@ npm run db:init
 - Login com JWT e roles (`ADMIN`, `ANALYST`)
 - Modulos de Clientes e Projetos
 - Cadastro de configuracoes com:
-  - `ip_start` (IP inicial)
-  - `ip_end` (IP final)
+  - `ip` (IP unico)
 - Cadastro multiplo na tela Nova Config (`+ Adicionar equipamento`)
+- Cadastro de cliente via modal com:
+  - `ip`
+  - `mask`
+  - `gateway`
 - Validacao/reprovacao com regra:
   - quem configura nao pode validar/reprovar o mesmo registro
 - Dashboard com cards:
@@ -53,9 +56,6 @@ npm run db:init
 - Relatorios com filtros por:
   - cliente
   - projeto
-  - equipamento
-  - IP
-  - status
 - Exportacao Excel/PDF com filtros
 - Pagina de detalhes por projeto e por configuracao
 - Paginacao no frontend (Pendentes, Historico, Relatorios)
@@ -72,7 +72,7 @@ O backend valida role antes de executar delete.
 
 ## Validacoes de seguranca (backend)
 
-- IPv4 valido (`ip_start`, `ip_end`)
+- IPv4 valido (`ip`, `mask`, `gateway`)
 - MAC valido (`AA:BB:CC:DD:EE:FF`)
 - VLAN de `1` a `4094`
 - SQL com query parametrizada (`$1`, `$2`, ...)
@@ -107,6 +107,9 @@ No frontend, senha do equipamento fica oculta por padrao com botao mostrar/ocult
 
 - `id`
 - `name`
+- `ip`
+- `mask`
+- `gateway`
 - `created_at`
 
 ### projects
@@ -122,8 +125,7 @@ No frontend, senha do equipamento fica oculta por padrao com botao mostrar/ocult
 - `client_id`
 - `project_id`
 - `equipment`
-- `ip_start`
-- `ip_end`
+- `ip`
 - `mask`
 - `gateway`
 - `vlan`

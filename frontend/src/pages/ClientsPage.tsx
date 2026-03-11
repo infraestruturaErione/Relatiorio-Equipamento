@@ -2,14 +2,33 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import Layout from '../components/Layout';
+import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 import type { Client, Project } from '../types';
+import { isValidIpv4 } from '../utils/network';
+
+type ClientFormState = {
+  name: string;
+  project_name: string;
+  ip: string;
+  mask: string;
+  gateway: string;
+};
+
+const initialFormState: ClientFormState = {
+  name: '',
+  project_name: '',
+  ip: '',
+  mask: '',
+  gateway: '',
+};
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [name, setName] = useState('');
-  const [initialProject, setInitialProject] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [form, setForm] = useState<ClientFormState>(initialFormState);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof ClientFormState, string>>>({});
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const { user } = useAuth();
@@ -34,16 +53,44 @@ export default function ClientsPage() {
     loadData();
   }, []);
 
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setFieldErrors({});
+  };
+
+  const updateField = (key: keyof ClientFormState, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: '' }));
+  };
+
+  const validateForm = () => {
+    const nextErrors: Partial<Record<keyof ClientFormState, string>> = {};
+
+    if (!form.name.trim()) nextErrors.name = 'Cliente obrigatorio.';
+    if (!form.ip.trim()) nextErrors.ip = 'IP obrigatorio.';
+    if (!form.mask.trim()) nextErrors.mask = 'Mascara obrigatoria.';
+    if (!form.gateway.trim()) nextErrors.gateway = 'Gateway obrigatorio.';
+
+    if (form.ip && !isValidIpv4(form.ip)) nextErrors.ip = 'Informe um IPv4 valido.';
+    if (form.mask && !isValidIpv4(form.mask)) nextErrors.mask = 'Informe um IPv4 valido.';
+    if (form.gateway && !isValidIpv4(form.gateway)) nextErrors.gateway = 'Informe um IPv4 valido.';
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
     setMessage('');
+    if (!validateForm()) return;
 
     try {
-      await api.post('/clients', { name, project_name: initialProject });
+      await api.post('/clients', form);
       setMessage('Cliente criado com sucesso.');
-      setName('');
-      setInitialProject('');
+      setForm(initialFormState);
+      setFieldErrors({});
+      closeCreateModal();
       await loadData();
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Falha ao criar cliente.');
@@ -70,37 +117,15 @@ export default function ClientsPage() {
     <Layout>
       <div className="page-header">
         <h2>Clientes</h2>
-        <p className="muted">Fluxo recomendado: crie o cliente e ja informe o primeiro projeto.</p>
+        <div className="page-actions">
+          <button type="button" onClick={() => setShowCreateModal(true)}>
+            Novo Cliente
+          </button>
+        </div>
       </div>
 
-      <form className="card inline-form inline-form-project" onSubmit={handleCreate}>
-        <div className="form-field">
-          <label className="field-label" htmlFor="client-name">
-            Nome do cliente
-          </label>
-          <input
-            id="client-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ex: Cliente Alfa"
-            required
-          />
-        </div>
-        <div className="form-field">
-          <label className="field-label" htmlFor="client-project">
-            Projeto inicial (opcional)
-          </label>
-          <input
-            id="client-project"
-            value={initialProject}
-            onChange={(e) => setInitialProject(e.target.value)}
-            placeholder="Ex: P10"
-          />
-        </div>
-        <button type="submit">Criar cliente</button>
-        {message && <p className="success">{message}</p>}
-        {error && <p className="error">{error}</p>}
-      </form>
+      {message && <p className="success">{message}</p>}
+      {error && <p className="error">{error}</p>}
 
       <div className="card client-tree">
         {clients.map((client) => {
@@ -112,6 +137,9 @@ export default function ClientsPage() {
                   <h3>{client.name}</h3>
                   <p className="muted">
                     {items.length} projeto(s) - {client.configs_count ?? 0} configuracao(oes)
+                  </p>
+                  <p className="muted client-network">
+                    IP {client.ip} | Mascara {client.mask} | Gateway {client.gateway}
                   </p>
                 </div>
                 {user?.role === 'ADMIN' && (
@@ -165,6 +193,93 @@ export default function ClientsPage() {
 
         {clients.length === 0 && <p className="muted">Nenhum cliente cadastrado.</p>}
       </div>
+
+      {showCreateModal && (
+        <Modal title="Novo Cliente" onClose={closeCreateModal}>
+          <form className="config-form" onSubmit={handleCreate}>
+            <div className="form-grid">
+              <div className="form-field">
+                <label className="field-label" htmlFor="client-name">
+                  Cliente
+                </label>
+                <input
+                  id="client-name"
+                  value={form.name}
+                  onChange={(e) => updateField('name', e.target.value)}
+                  className={fieldErrors.name ? 'input-error' : ''}
+                  placeholder="Ex: Cliente Alfa"
+                  required
+                />
+                {fieldErrors.name && <span className="error">{fieldErrors.name}</span>}
+              </div>
+
+              <div className="form-field">
+                <label className="field-label" htmlFor="client-project">
+                  Projeto (opcional)
+                </label>
+                <input
+                  id="client-project"
+                  value={form.project_name}
+                  onChange={(e) => updateField('project_name', e.target.value)}
+                  placeholder="Ex: P10"
+                />
+              </div>
+
+              <div className="form-field">
+                <label className="field-label" htmlFor="client-ip">
+                  IP
+                </label>
+                <input
+                  id="client-ip"
+                  value={form.ip}
+                  onChange={(e) => updateField('ip', e.target.value)}
+                  className={fieldErrors.ip ? 'input-error' : ''}
+                  placeholder="Ex: 192.168.0.10"
+                  required
+                />
+                {fieldErrors.ip && <span className="error">{fieldErrors.ip}</span>}
+              </div>
+
+              <div className="form-field">
+                <label className="field-label" htmlFor="client-mask">
+                  Mascara
+                </label>
+                <input
+                  id="client-mask"
+                  value={form.mask}
+                  onChange={(e) => updateField('mask', e.target.value)}
+                  className={fieldErrors.mask ? 'input-error' : ''}
+                  placeholder="Ex: 255.255.255.0"
+                  required
+                />
+                {fieldErrors.mask && <span className="error">{fieldErrors.mask}</span>}
+              </div>
+
+              <div className="form-field">
+                <label className="field-label" htmlFor="client-gateway">
+                  Gateway
+                </label>
+                <input
+                  id="client-gateway"
+                  value={form.gateway}
+                  onChange={(e) => updateField('gateway', e.target.value)}
+                  className={fieldErrors.gateway ? 'input-error' : ''}
+                  placeholder="Ex: 192.168.0.1"
+                  required
+                />
+                {fieldErrors.gateway && <span className="error">{fieldErrors.gateway}</span>}
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button type="submit">Salvar</button>
+              <button type="button" className="danger" onClick={closeCreateModal}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </Layout>
   );
 }

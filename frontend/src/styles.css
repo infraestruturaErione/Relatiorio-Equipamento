@@ -127,6 +127,12 @@ button:hover {
   padding: 4px 2px;
 }
 
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;
@@ -299,10 +305,17 @@ button:hover {
 }
 
 .content {
-  padding: 28px;
+  padding: 20px clamp(14px, 2.6vw, 28px) 28px;
   display: grid;
   gap: 16px;
   min-height: 100vh;
+  min-width: 0;
+  align-content: start;
+}
+
+.content > * {
+  width: min(100%, 1240px);
+  justify-self: center;
 }
 
 .card {
@@ -357,6 +370,12 @@ button:hover {
   gap: 6px;
 }
 
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+}
+
 .field-label {
   font-size: 0.9rem;
   font-weight: 600;
@@ -376,11 +395,13 @@ button:hover {
   overflow-x: auto;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+  max-width: 100%;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 100%;
 }
 
 th,
@@ -469,7 +490,7 @@ tbody tr:hover {
 }
 
 .filters-report {
-  grid-template-columns: repeat(5, minmax(160px, 1fr)) repeat(3, minmax(140px, 1fr));
+  grid-template-columns: repeat(5, minmax(160px, 1fr));
 }
 
 .filters-advanced .form-field {
@@ -499,7 +520,8 @@ tbody tr:hover {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 10, 18, 0.64);
+  background: rgba(5, 10, 18, 0.28);
+  backdrop-filter: blur(2px);
   display: grid;
   place-items: center;
   z-index: 40;
@@ -507,9 +529,17 @@ tbody tr:hover {
 }
 
 .modal-card {
-  width: min(900px, 100%);
+  width: min(760px, 100%);
   max-height: 85vh;
   overflow: auto;
+}
+
+.modal-md {
+  width: min(760px, 100%);
+}
+
+.modal-lg {
+  width: min(960px, 100%);
 }
 
 .modal-head {
@@ -579,6 +609,73 @@ tbody tr:hover {
   gap: 10px;
 }
 
+.project-layout {
+  display: grid;
+  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.project-sidebar {
+  position: sticky;
+  top: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.project-main {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.project-client-card {
+  display: grid;
+  gap: 14px;
+}
+
+.project-client-info {
+  display: grid;
+  gap: 12px;
+}
+
+.project-client-info div {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+}
+
+.eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.icon-nav-btn {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.empty-state {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  min-height: 220px;
+  align-content: center;
+}
+
+.empty-state-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .project-metrics {
   display: grid;
   gap: 4px;
@@ -604,6 +701,10 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.client-network {
+  margin-top: 4px;
 }
 
 .link-btn {
@@ -654,6 +755,18 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.input-error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--error) 70%, transparent);
 }
 
 .pagination {
@@ -671,6 +784,7 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .pagination-page {
@@ -700,7 +814,7 @@ tbody tr:hover {
   }
 
   .filters-report {
-    grid-template-columns: repeat(2, minmax(170px, 1fr));
+    grid-template-columns: repeat(3, minmax(170px, 1fr));
   }
 }
 
@@ -721,6 +835,10 @@ tbody tr:hover {
     position: static;
     height: auto;
     overflow: visible;
+  }
+
+  .content {
+    padding-top: 14px;
   }
 
   .section-head,
@@ -751,8 +869,61 @@ tbody tr:hover {
     align-items: stretch;
   }
 
+  .project-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .project-sidebar {
+    position: static;
+  }
+
   .pagination {
     flex-direction: column;
+    align-items: flex-start;
+  }
+
+  table {
+    min-width: 720px;
+  }
+}
+
+@media (max-width: 640px) {
+  .content {
+    gap: 12px;
+    padding: 12px 12px 20px;
+  }
+
+  .card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .grid,
+  .filters,
+  .filters-report,
+  .project-grid,
+  .details-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions,
+  .page-actions,
+  .project-actions,
+  .empty-state-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .modal-actions button,
+  .page-actions button,
+  .project-actions button,
+  .project-actions .link-btn,
+  .actions-cell button {
+    width: 100%;
+  }
+
+  .masked-text {
     align-items: flex-start;
   }
 }
