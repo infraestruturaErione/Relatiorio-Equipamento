@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import api from '../api';
 import Layout from '../components/Layout';
 import type { Client, Project } from '../types';
-import { isValidIpv4 } from '../utils/network';
+import { isValidIpv4, isValidMac, isValidVlan } from '../utils/network';
 
 type ContextState = {
   client_id: string;
@@ -124,6 +124,14 @@ export default function NewConfigPage() {
       for (const device of devices) {
         if (!isValidIpv4(device.ip) || !isValidIpv4(device.mask) || !isValidIpv4(device.gateway)) {
           throw new Error('IP, mascara e gateway devem ser IPv4 validos.');
+        }
+
+        if (!isValidMac(device.mac)) {
+          throw new Error('MAC invalido. Use AA:BB:CC:DD:EE:FF.');
+        }
+
+        if (!isValidVlan(device.vlan)) {
+          throw new Error('VLAN invalida. Use valores de 1 a 4094.');
         }
       }
 

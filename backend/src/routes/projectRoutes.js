@@ -1,10 +1,10 @@
 const express = require('express');
 const pool = require('../db');
 const { authMiddleware, requireAdmin } = require('../middleware/auth');
+const { logAudit } = require('../services/auditService');
+const { isValidIpv4, isValidNetworkRange } = require('../utils/validation');
 
 const router = express.Router();
-const ipRegex =
-  /^(25[0-5]|2[0-4]\d|1\d\d|\d\d|\d)\.(25[0-5]|2[0-4]\d|1\d\d|\d\d|\d)\.(25[0-5]|2[0-4]\d|1\d\d|\d\d|\d)\.(25[0-5]|2[0-4]\d|1\d\d|\d\d|\d)$/;
 
 router.use(authMiddleware);
 
@@ -111,7 +111,11 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: 'Client, project name, network range, mask and gateway are required.' });
   }
 
-  if (!ipRegex.test(String(mask).trim()) || !ipRegex.test(String(gateway).trim())) {
+  if (!isValidNetworkRange(networkRange)) {
+    return res.status(400).json({ message: 'Network range must use CIDR format, e.g. 192.168.10.0/24.' });
+  }
+
+  if (!isValidIpv4(mask) || !isValidIpv4(gateway)) {
     return res.status(400).json({ message: 'Mask and gateway must be valid IPv4 values.' });
   }
 
@@ -140,6 +144,14 @@ router.post('/', async (req, res) => {
     return res.status(409).json({ message: 'Project already exists for this client.' });
   }
 
+  await logAudit(pool, {
+    entityType: 'project',
+    entityId: result.rows[0].id,
+    action: 'CREATE',
+    changedBy: req.user.id,
+    afterData: result.rows[0],
+  });
+
   return res.status(201).json(result.rows[0]);
 });
 
@@ -164,7 +176,11 @@ router.patch('/:id', requireAdmin, async (req, res) => {
     return res.status(400).json({ message: 'Project name, network range, mask and gateway are required.' });
   }
 
-  if (!ipRegex.test(String(mask).trim()) || !ipRegex.test(String(gateway).trim())) {
+  if (!isValidNetworkRange(networkRange)) {
+    return res.status(400).json({ message: 'Network range must use CIDR format, e.g. 192.168.10.0/24.' });
+  }
+
+  if (!isValidIpv4(mask) || !isValidIpv4(gateway)) {
     return res.status(400).json({ message: 'Mask and gateway must be valid IPv4 values.' });
   }
 
@@ -190,7 +206,7 @@ router.patch('/:id', requireAdmin, async (req, res) => {
   const result = await pool.query(
     `
       UPDATE projects
-      SET name = $1, network_range = $2, mask = $3, gateway = $4
+      SET name = $1, network_range = $2, mask = $3, gateway = $4, updated_at = NOW()
       WHERE id = $5
       RETURNING *
     `,
@@ -202,6 +218,15 @@ router.patch('/:id', requireAdmin, async (req, res) => {
       projectId,
     ]
   );
+
+  await logAudit(pool, {
+    entityType: 'project',
+    entityId: projectId,
+    action: 'UPDATE',
+    changedBy: req.user.id,
+    beforeData: existingProject,
+    afterData: result.rows[0],
+  });
 
   return res.json(result.rows[0]);
 });
@@ -216,7 +241,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const exists = await client.query('SELECT id FROM projects WHERE id = $1', [projectId]);
+    const exists = await client.query('SELECT * FROM projects WHERE id = $1', [projectId]);
     if (exists.rowCount === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Project not found.' });
@@ -224,6 +249,13 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 
     await client.query('DELETE FROM equipment_configs WHERE project_id = $1', [projectId]);
     await client.query('DELETE FROM projects WHERE id = $1', [projectId]);
+    await logAudit(client, {
+      entityType: 'project',
+      entityId: projectId,
+      action: 'DELETE',
+      changedBy: req.user.id,
+      beforeData: exists.rows[0],
+    });
     await client.query('COMMIT');
 
     return res.status(204).send();

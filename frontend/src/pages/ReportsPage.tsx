@@ -20,6 +20,10 @@ function downloadBlob(blob: Blob, fileName: string) {
 export default function ReportsPage() {
   const [clientId, setClientId] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [status, setStatus] = useState('');
+  const [query, setQuery] = useState('');
+  const [createdFrom, setCreatedFrom] = useState('');
+  const [createdTo, setCreatedTo] = useState('');
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [rows, setRows] = useState<EquipmentConfig[]>([]);
@@ -40,6 +44,10 @@ export default function ReportsPage() {
     const params: Record<string, string> = {};
     if (clientId) params.client_id = clientId;
     if (projectId) params.project_id = projectId;
+    if (status) params.status = status;
+    if (query) params.q = query;
+    if (createdFrom) params.created_from = createdFrom;
+    if (createdTo) params.created_to = createdTo;
     return params;
   };
 
@@ -95,15 +103,14 @@ export default function ReportsPage() {
     <Layout>
       <div className="page-header">
         <h2>Relatorios</h2>
+        <p className="muted">Exportacao com filtros aplicados, periodo e total consolidado.</p>
       </div>
 
       {error && <p className="error">{error}</p>}
 
-      <div className="card filters filters-report">
+      <div className="card filters filters-report-advanced">
         <div className="form-field">
-          <label className="field-label" htmlFor="client-filter">
-            Cliente
-          </label>
+          <label className="field-label" htmlFor="client-filter">Cliente</label>
           <select
             id="client-filter"
             value={clientId}
@@ -122,9 +129,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="form-field">
-          <label className="field-label" htmlFor="project-filter">
-            Projeto
-          </label>
+          <label className="field-label" htmlFor="project-filter">Projeto</label>
           <select
             id="project-filter"
             value={projectId}
@@ -139,9 +144,46 @@ export default function ReportsPage() {
           </select>
         </div>
 
+        <div className="form-field">
+          <label className="field-label" htmlFor="status-filter">Status</label>
+          <select id="status-filter" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">Todos</option>
+            <option value="PENDING">Pendente</option>
+            <option value="APPROVED">Aprovado</option>
+            <option value="REJECTED">Reprovado</option>
+          </select>
+        </div>
+
+        <div className="form-field">
+          <label className="field-label" htmlFor="search-filter">Busca</label>
+          <input
+            id="search-filter"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cliente, projeto, IP, VLAN, servico"
+          />
+        </div>
+
+        <div className="form-field">
+          <label className="field-label" htmlFor="date-from-filter">De</label>
+          <input id="date-from-filter" type="date" value={createdFrom} onChange={(e) => setCreatedFrom(e.target.value)} />
+        </div>
+
+        <div className="form-field">
+          <label className="field-label" htmlFor="date-to-filter">Ate</label>
+          <input id="date-to-filter" type="date" value={createdTo} onChange={(e) => setCreatedTo(e.target.value)} />
+        </div>
+
         <button type="button" onClick={load}>Buscar</button>
         <button type="button" onClick={exportExcel}>Exportar Excel</button>
         <button type="button" onClick={exportPdf}>Exportar PDF</button>
+      </div>
+
+      <div className="card report-summary">
+        <strong>Total encontrado: {rows.length}</strong>
+        <span className="muted">
+          Periodo: {createdFrom || '-'} ate {createdTo || '-'}
+        </span>
       </div>
 
       <div className="table-wrap card">
@@ -155,6 +197,7 @@ export default function ReportsPage() {
               <th>Gateway</th>
               <th>VLAN</th>
               <th>Service</th>
+              <th>Status</th>
               <th>Configurado por</th>
               <th>Validado por</th>
               <th>Detalhes</th>
@@ -170,6 +213,7 @@ export default function ReportsPage() {
                 <td>{item.gateway}</td>
                 <td>{item.vlan}</td>
                 <td>{item.service}</td>
+                <td>{item.status}</td>
                 <td>{item.configured_by_name}</td>
                 <td>{item.validated_by_name || '-'}</td>
                 <td>
@@ -181,7 +225,7 @@ export default function ReportsPage() {
             ))}
             {pagedRows.length === 0 && (
               <tr>
-                <td colSpan={10} className="empty-row">
+                <td colSpan={11} className="empty-row">
                   Nenhum registro encontrado para o filtro atual.
                 </td>
               </tr>

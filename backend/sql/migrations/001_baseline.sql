@@ -64,12 +64,6 @@ ALTER TABLE clients
   ADD COLUMN IF NOT EXISTS mask VARCHAR(45);
 ALTER TABLE clients
   ADD COLUMN IF NOT EXISTS gateway VARCHAR(45);
-UPDATE clients
-SET
-  ip = COALESCE(ip, '0.0.0.0'),
-  mask = COALESCE(mask, '255.255.255.0'),
-  gateway = COALESCE(gateway, '0.0.0.1')
-WHERE ip IS NULL OR mask IS NULL OR gateway IS NULL;
 ALTER TABLE clients
   ALTER COLUMN ip DROP NOT NULL;
 ALTER TABLE clients
@@ -89,8 +83,8 @@ WHERE p.client_id = c.id
   AND p.network_range IS NULL;
 UPDATE projects p
 SET
-  mask = COALESCE(p.mask, c.mask),
-  gateway = COALESCE(p.gateway, c.gateway)
+  mask = COALESCE(p.mask, c.mask, '255.255.255.0'),
+  gateway = COALESCE(p.gateway, c.gateway, '0.0.0.1')
 FROM clients c
 WHERE p.client_id = c.id
   AND (p.mask IS NULL OR p.gateway IS NULL);

@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 import type { Client, Project } from '../types';
+import { isValidIpv4, isValidNetworkRange } from '../utils/network';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -74,6 +75,16 @@ export default function ProjectsPage() {
     setError('');
     setMessage('');
 
+    if (!isValidNetworkRange(networkRange)) {
+      setError('Rede invalida. Use CIDR, por exemplo 192.168.10.0/24.');
+      return;
+    }
+
+    if (!isValidIpv4(mask) || !isValidIpv4(gateway)) {
+      setError('Mascara e gateway devem ser IPv4 validos.');
+      return;
+    }
+
     try {
       await api.post('/projects', {
         client_id: Number(clientId),
@@ -119,6 +130,16 @@ export default function ProjectsPage() {
     setEditError('');
     setError('');
     setMessage('');
+
+    if (!isValidNetworkRange(editNetworkRange)) {
+      setEditError('Rede invalida. Use CIDR, por exemplo 192.168.10.0/24.');
+      return;
+    }
+
+    if (!isValidIpv4(editMask) || !isValidIpv4(editGateway)) {
+      setEditError('Mascara e gateway devem ser IPv4 validos.');
+      return;
+    }
 
     try {
       await api.patch(`/projects/${editingProject.id}`, {

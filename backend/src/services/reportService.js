@@ -2,13 +2,21 @@ const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 
-function buildExcel(configs) {
+function formatFilters(filters) {
+  return Object.entries(filters || {})
+    .filter(([, value]) => value)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(' | ') || 'Sem filtros';
+}
+
+function buildExcel(configs, meta = {}) {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Configurations');
   const now = new Date().toLocaleString();
+  const filtersText = formatFilters(meta.filters);
 
   sheet.mergeCells('A1:O1');
-  sheet.getCell('A1').value = `Relatorio de Configuracoes - ${now}`;
+  sheet.getCell('A1').value = `Relatorio Executivo de Configuracoes - ${now}`;
   sheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
   sheet.getCell('A1').fill = {
     type: 'pattern',
@@ -17,6 +25,14 @@ function buildExcel(configs) {
   };
   sheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left' };
   sheet.getRow(1).height = 24;
+
+  sheet.mergeCells('A2:O2');
+  sheet.getCell('A2').value = `Total de registros: ${meta.total_records || configs.length}`;
+  sheet.getCell('A2').font = { bold: true, size: 11 };
+
+  sheet.mergeCells('A3:O3');
+  sheet.getCell('A3').value = `Filtros aplicados: ${filtersText}`;
+  sheet.getCell('A3').font = { italic: true, size: 10 };
 
   sheet.columns = [
     { header: 'ID', key: 'id', width: 8 },
@@ -36,7 +52,7 @@ function buildExcel(configs) {
     { header: 'Validado em', key: 'validated_at', width: 20 },
   ];
 
-  const headerRow = sheet.getRow(2);
+  const headerRow = sheet.getRow(4);
   headerRow.values = sheet.columns.map((column) => column.header);
   headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   headerRow.fill = {
@@ -52,7 +68,7 @@ function buildExcel(configs) {
   });
 
   sheet.eachRow((row, rowNumber) => {
-    if (rowNumber > 2 && rowNumber % 2 === 1) {
+    if (rowNumber > 4 && rowNumber % 2 === 1) {
       row.eachCell((cell) => {
         cell.fill = cell.fill || {
           type: 'pattern',
@@ -64,31 +80,45 @@ function buildExcel(configs) {
   });
 
   sheet.autoFilter = {
-    from: { row: 2, column: 1 },
-    to: { row: 2, column: sheet.columns.length },
+    from: { row: 4, column: 1 },
+    to: { row: 4, column: sheet.columns.length },
   };
-  sheet.views = [{ state: 'frozen', ySplit: 2 }];
+  sheet.views = [{ state: 'frozen', ySplit: 4 }];
 
   return workbook;
 }
 
-async function buildPdf(configs, writableStream) {
+async function buildPdf(configs, writableStream, meta = {}) {
   const doc = new PDFDocument({ margin: 32, size: 'A4' });
   doc.pipe(writableStream);
   const webBaseUrl = process.env.WEB_BASE_URL || 'http://localhost:5173';
+  const filtersText = formatFilters(meta.filters);
 
-  doc.fontSize(16).text('Relatorio de Configuracoes de Equipamentos', { underline: true });
-  doc.moveDown();
+  doc
+    .fontSize(18)
+    .text('Relatorio Executivo de Configuracoes', { underline: true })
+    .moveDown(0.5);
+  doc.fontSize(10).fillColor('#334155')
+    .text(`Gerado em: ${new Date(meta.generated_at || Date.now()).toLocaleString()}`)
+    .text(`Total de registros: ${meta.total_records || configs.length}`)
+    .text(`Filtros aplicados: ${filtersText}`)
+    .moveDown(1.2);
+  doc.fillColor('#000000');
 
   for (const [index, config] of configs.entries()) {
     const detailsUrl = `${webBaseUrl}/configs/${config.id}`;
     const qrBuffer = await QRCode.toBuffer(detailsUrl, { width: 82, margin: 1 });
 
     doc
-      .fontSize(10)
+      .roundedRect(32, doc.y - 2, doc.page.width - 64, 108, 8)
+      .stroke('#CBD5E1');
+
+    doc
+      .fontSize(11)
       .text(
         `${index + 1}. ${config.client_name || '-'} / ${config.project_name || '-'}`
       )
+      .moveDown(0.2)
       .text(`Mascara: ${config.mask || '-'} | Gateway: ${config.gateway || '-'} | VLAN: ${config.vlan}`)
       .text(`Configurado por: ${config.configured_by_name} | Validado por: ${config.validated_by_name || '-'}`)
       .text(`Service: ${config.service} | MAC: ${config.mac}`)
@@ -102,9 +132,9 @@ async function buildPdf(configs, writableStream) {
       .moveDown(0.8);
 
     doc.image(qrBuffer, doc.page.width - 120, doc.y - 74, { width: 72, height: 72 });
-    doc.moveDown(3.8);
+    doc.moveDown(3.2);
 
-    if (doc.y > 730) {
+    if (doc.y > 700) {
       doc.addPage();
     }
   }

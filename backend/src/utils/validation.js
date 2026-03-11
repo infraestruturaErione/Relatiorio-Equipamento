@@ -1,29 +1,34 @@
-import rules from './validationRules';
+const rules = require('../../../shared/validation-rules.json');
 
 const ipv4Regex = new RegExp(rules.ipv4Pattern);
 const macRegex = new RegExp(rules.macPattern);
 const vlanRegex = new RegExp(rules.vlanPattern);
 const networkRangeRegex = new RegExp(rules.networkRangePattern);
 
-function normalize(value: string) {
-  return value.trim();
+function normalize(value) {
+  return String(value || '').trim();
 }
 
-function isValidIpv4(value: string) {
+function isValidIpv4(value) {
   return ipv4Regex.test(normalize(value));
 }
 
-function isValidMac(value: string) {
+function isValidMac(value) {
   return macRegex.test(normalize(value));
 }
 
-function isValidVlan(value: string) {
+function isValidVlan(value) {
   const normalized = normalize(value);
   return vlanRegex.test(normalized) && Number(normalized) <= Number(rules.maxVlan);
 }
 
-function isValidNetworkRange(value: string) {
+function isValidNetworkRange(value) {
   return networkRangeRegex.test(normalize(value));
 }
 
-export { isValidIpv4, isValidMac, isValidNetworkRange, isValidVlan };
+module.exports = {
+  isValidIpv4,
+  isValidMac,
+  isValidVlan,
+  isValidNetworkRange,
+};

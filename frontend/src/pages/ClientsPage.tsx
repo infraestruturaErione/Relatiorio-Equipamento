@@ -5,32 +5,26 @@ import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 import type { Client, Project } from '../types';
-import { isValidIpv4 } from '../utils/network';
 
 type ClientFormState = {
   name: string;
-  project_name: string;
-  ip: string;
-  mask: string;
-  gateway: string;
 };
 
 const initialFormState: ClientFormState = {
   name: '',
-  project_name: '',
-  ip: '',
-  mask: '',
-  gateway: '',
 };
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form, setForm] = useState<ClientFormState>(initialFormState);
+  const [editName, setEditName] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof ClientFormState, string>>>({});
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [editError, setEditError] = useState('');
   const { user } = useAuth();
 
   const projectsByClient = useMemo(() => {
@@ -58,6 +52,18 @@ export default function ClientsPage() {
     setFieldErrors({});
   };
 
+  const openEditModal = (client: Client) => {
+    setEditingClient(client);
+    setEditName(client.name);
+    setEditError('');
+  };
+
+  const closeEditModal = () => {
+    setEditingClient(null);
+    setEditName('');
+    setEditError('');
+  };
+
   const updateField = (key: keyof ClientFormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setFieldErrors((prev) => ({ ...prev, [key]: '' }));
@@ -67,13 +73,6 @@ export default function ClientsPage() {
     const nextErrors: Partial<Record<keyof ClientFormState, string>> = {};
 
     if (!form.name.trim()) nextErrors.name = 'Cliente obrigatorio.';
-    if (!form.ip.trim()) nextErrors.ip = 'IP obrigatorio.';
-    if (!form.mask.trim()) nextErrors.mask = 'Mascara obrigatoria.';
-    if (!form.gateway.trim()) nextErrors.gateway = 'Gateway obrigatorio.';
-
-    if (form.ip && !isValidIpv4(form.ip)) nextErrors.ip = 'Informe um IPv4 valido.';
-    if (form.mask && !isValidIpv4(form.mask)) nextErrors.mask = 'Informe um IPv4 valido.';
-    if (form.gateway && !isValidIpv4(form.gateway)) nextErrors.gateway = 'Informe um IPv4 valido.';
 
     setFieldErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -113,6 +112,24 @@ export default function ClientsPage() {
     }
   };
 
+  const handleEditClient = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingClient) return;
+
+    setEditError('');
+    setError('');
+    setMessage('');
+
+    try {
+      await api.patch(`/clients/${editingClient.id}`, { name: editName });
+      setMessage('Cliente atualizado com sucesso.');
+      closeEditModal();
+      await loadData();
+    } catch (err: any) {
+      setEditError(err?.response?.data?.message || 'Falha ao atualizar cliente.');
+    }
+  };
+
   return (
     <Layout>
       <div className="page-header">
@@ -138,18 +155,20 @@ export default function ClientsPage() {
                   <p className="muted">
                     {items.length} projeto(s) - {client.configs_count ?? 0} configuracao(oes)
                   </p>
-                  <p className="muted client-network">
-                    IP {client.ip} | Mascara {client.mask} | Gateway {client.gateway}
-                  </p>
                 </div>
                 {user?.role === 'ADMIN' && (
-                  <button
-                    type="button"
-                    className="danger"
-                    onClick={() => handleDeleteClient(client.id)}
-                  >
-                    Excluir cliente
-                  </button>
+                  <div className="project-actions">
+                    <button type="button" onClick={() => openEditModal(client)}>
+                      Editar cliente
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => handleDeleteClient(client.id)}
+                    >
+                      Excluir cliente
+                    </button>
+                  </div>
                 )}
               </header>
 
@@ -161,6 +180,7 @@ export default function ClientsPage() {
                     <thead>
                       <tr>
                         <th>Projeto</th>
+                        <th>Rede</th>
                         <th>Total Configs</th>
                         <th>Pendentes</th>
                         <th>Aprovadas</th>
@@ -172,6 +192,7 @@ export default function ClientsPage() {
                       {items.map((project) => (
                         <tr key={project.id}>
                           <td>{project.name}</td>
+                          <td className="ip-cell">{project.network_range}</td>
                           <td>{project.total_configs ?? 0}</td>
                           <td>{project.pending_configs ?? 0}</td>
                           <td>{project.approved_configs ?? 0}</td>
@@ -212,63 +233,6 @@ export default function ClientsPage() {
                 />
                 {fieldErrors.name && <span className="error">{fieldErrors.name}</span>}
               </div>
-
-              <div className="form-field">
-                <label className="field-label" htmlFor="client-project">
-                  Projeto (opcional)
-                </label>
-                <input
-                  id="client-project"
-                  value={form.project_name}
-                  onChange={(e) => updateField('project_name', e.target.value)}
-                  placeholder="Ex: P10"
-                />
-              </div>
-
-              <div className="form-field">
-                <label className="field-label" htmlFor="client-ip">
-                  IP
-                </label>
-                <input
-                  id="client-ip"
-                  value={form.ip}
-                  onChange={(e) => updateField('ip', e.target.value)}
-                  className={fieldErrors.ip ? 'input-error' : ''}
-                  placeholder="Ex: 192.168.0.10"
-                  required
-                />
-                {fieldErrors.ip && <span className="error">{fieldErrors.ip}</span>}
-              </div>
-
-              <div className="form-field">
-                <label className="field-label" htmlFor="client-mask">
-                  Mascara
-                </label>
-                <input
-                  id="client-mask"
-                  value={form.mask}
-                  onChange={(e) => updateField('mask', e.target.value)}
-                  className={fieldErrors.mask ? 'input-error' : ''}
-                  placeholder="Ex: 255.255.255.0"
-                  required
-                />
-                {fieldErrors.mask && <span className="error">{fieldErrors.mask}</span>}
-              </div>
-
-              <div className="form-field">
-                <label className="field-label" htmlFor="client-gateway">
-                  Gateway
-                </label>
-                <input
-                  id="client-gateway"
-                  value={form.gateway}
-                  onChange={(e) => updateField('gateway', e.target.value)}
-                  className={fieldErrors.gateway ? 'input-error' : ''}
-                  placeholder="Ex: 192.168.0.1"
-                  required
-                />
-                {fieldErrors.gateway && <span className="error">{fieldErrors.gateway}</span>}
-              </div>
             </div>
 
             <div className="modal-actions">
@@ -276,6 +240,33 @@ export default function ClientsPage() {
               <button type="button" className="danger" onClick={closeCreateModal}>
                 Cancelar
               </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {editingClient && (
+        <Modal title={`Editar ${editingClient.name}`} onClose={closeEditModal}>
+          <form className="config-form" onSubmit={handleEditClient}>
+            <div className="form-field">
+              <label className="field-label" htmlFor="edit-client-name">
+                Cliente
+              </label>
+              <input
+                id="edit-client-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+
+            {editError && <p className="error">{editError}</p>}
+
+            <div className="modal-actions">
+              <button type="button" className="danger" onClick={closeEditModal}>
+                Cancelar
+              </button>
+              <button type="submit">Salvar alteracoes</button>
             </div>
           </form>
         </Modal>

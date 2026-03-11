@@ -513,6 +513,10 @@ tbody tr:hover {
   grid-template-columns: repeat(5, minmax(160px, 1fr));
 }
 
+.filters-report-advanced {
+  grid-template-columns: repeat(6, minmax(150px, 1fr));
+}
+
 .filters-advanced .form-field {
   margin: 0;
 }
@@ -733,6 +737,28 @@ tbody tr:hover {
   margin-top: 4px;
 }
 
+.search-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.search-list a,
+.search-list span {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--card-2) 70%, transparent);
+}
+
+.report-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .link-btn {
   display: inline-flex;
   align-items: center;
@@ -842,6 +868,10 @@ tbody tr:hover {
   .filters-report {
     grid-template-columns: repeat(3, minmax(170px, 1fr));
   }
+
+  .filters-report-advanced {
+    grid-template-columns: repeat(3, minmax(170px, 1fr));
+  }
 }
 
 @media (max-width: 900px) {
@@ -927,6 +957,7 @@ tbody tr:hover {
   .grid,
   .filters,
   .filters-report,
+  .filters-report-advanced,
   .project-grid,
   .details-grid,
   .form-grid {
