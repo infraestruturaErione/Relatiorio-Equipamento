@@ -16,6 +16,7 @@ docker compose up --build
 ```
 
 O servico `backend` aplica as migracoes automaticamente antes de iniciar a API.
+Os builds de `frontend` e `backend` usam o contexto raiz do repositorio para incluir a pasta `shared/`.
 
 Acessos:
 

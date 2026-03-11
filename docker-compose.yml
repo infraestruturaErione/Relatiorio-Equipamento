@@ -21,8 +21,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: relatorio-backend
     restart: unless-stopped
     command: sh -c "npm run db:migrate && npm start"
@@ -39,8 +39,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:4000/api}
     container_name: relatorio-frontend

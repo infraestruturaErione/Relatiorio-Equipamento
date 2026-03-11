@@ -1,0 +1,7 @@
+.git
+**/node_modules
+**/dist
+**/.vite
+**/*.log
+frontend/server-*.log
+backend/server-*.log
